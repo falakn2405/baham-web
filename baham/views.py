@@ -1,3 +1,4 @@
+import base64
 import json
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse, QueryDict
 from django.template import loader
@@ -157,12 +158,31 @@ def update_vehicle(request):
 #############
 ### REST ####
 #############
+def basic_auth(request):
+    # Look for Authorization header
+    auth_header = request.META['HTTP_AUTHORIZATION']
+    _, encoded_credentials = auth_header.split(' ')
+    # Decode the encoded credentials in header
+    credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+    # Split into username and password
+    username, password = credentials.split(':')
+    # Authenticate
+    user = User.objects.filter(Q(username=username)).first()
+    if not user:
+        return JsonResponse({'error': 'User does not exist!'}, status=401)
+    return user.check_password(password)
+
+
 def get_csrf_token(request):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     csrf_token = get_token(request)
     return JsonResponse({'csrf_token': csrf_token})
 
 
 def get_all_vehicle_models(request):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     if request.method == 'GET':
         vehicle_models = VehicleModel.objects.all()
         data = []
@@ -181,6 +201,8 @@ def get_all_vehicle_models(request):
 
 
 def get_vehicle_model(request, uuid):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     if request.method == 'GET':
         model = VehicleModel.objects.filter(uuid=uuid).first()
         data = {
@@ -204,6 +226,8 @@ def get_vehicle_model(request, uuid):
 
 
 def create_vehicle_model(request):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     if request.method == 'POST':
         _vendor = request.POST.get('vendor')
         _model = request.POST.get('model')
@@ -220,6 +244,8 @@ def create_vehicle_model(request):
 
 
 def update_vehicle_model(request, uuid):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     if request.method == 'PUT':
         params = QueryDict(request.body)
         _vendor = params.get('vendor')
@@ -247,6 +273,8 @@ def update_vehicle_model(request, uuid):
 
 
 def delete_vehicle_model(request, uuid):
+    if not (basic_auth(request)):
+        return JsonResponse({'error': 'Password does not match!'}, status=401)
     if request.method == 'DELETE':
         vehicle_model = VehicleModel.objects.filter(uuid=uuid).first()
         if not vehicle_model:

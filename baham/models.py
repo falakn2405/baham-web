@@ -2,6 +2,7 @@ from django.utils.timezone import now
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+from django.db.models import Q
 from uuid import uuid4
 import re
 
@@ -114,6 +115,9 @@ class VehicleModel(models.Model):
         return f"{self.vendor} {self.model}"
     
     def save(self, created_by=None, *args, **kwargs):
+        exists = VehicleModel.objects.filter(vendor=self.vendor, model=self.model)
+        if exists:
+            raise Exception("Another object with same vendor and model exists!")
         self.date_created = timezone.now()
         if not created_by:
             created_by = User.objects.get(pk=1)
@@ -121,6 +125,9 @@ class VehicleModel(models.Model):
         super().save()
     
     def update(self, updated_by=None, *args, **kwargs):
+        exists = VehicleModel.objects.filter(vendor=self.vendor, model=self.model)
+        if exists:
+            raise Exception("Another object with same vendor and model exists!")
         self.date_updated = timezone.now()
         if (not updated_by):
             updated_by = User.objects.get(pk=1)
@@ -175,6 +182,10 @@ class Vehicle(models.Model):
         return f"{self.model.vendor} {self.model.model} {self.colour}"
     
     def save(self, created_by=None, *args, **kwargs):
+        # No more than one active vehicles per owner
+        owned_vehicles = Vehicle.objects.filter(owner=self.owner).exclude(status=VehicleStatus.REMOVED)
+        if owned_vehicles:
+            raise Exception("Another vehicle is already registred for this Owner.")
         self.date_created = timezone.now()
         if not created_by:
             created_by = User.objects.get(pk=1)
